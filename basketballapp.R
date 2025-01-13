@@ -88,7 +88,7 @@ ui <- dashboardPage(skin = "blue",
                                        )
                               ),
                               fluidRow(
-                                column(12, reactableOutput("schedule_plot"), style = "padding-top: 50px;")
+                                column(12, reactableOutput("bart_plot"), style = "padding-top: 50px;")
                               ))
                     )
                     )
