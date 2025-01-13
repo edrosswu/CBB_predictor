@@ -80,7 +80,16 @@ ui <- dashboardPage(skin = "blue",
                                   column(12, reactableOutput("schedule_plot"), style = "padding-top: 50px;")
                           
                         )
-                      )
+                      ), 
+                      tabItem(tabName = "bart",
+                              fluidRow(
+                                column(12,
+                                       tags$h2("Barttorvik", style = "text-align: center;")
+                                       )
+                              ),
+                              fluidRow(
+                                column(12, reactableOutput("schedule_plot"), style = "padding-top: 50px;")
+                              ))
                     )
                     )
 ) 
@@ -91,6 +100,12 @@ server <- function(input, output, session) {
     reactable(
       getsched()
     ) 
+  })
+  
+  output$bart_plot <- renderReactable({
+    reactable(
+      getbart()
+    )
   })
 }
 
