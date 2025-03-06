@@ -46,7 +46,7 @@ rows_data3 = [[td.getText() for td in rows3[i].findAll('td')]
 bart = pd.DataFrame(rows_data, columns = headers)
 kp = pd.DataFrame(rows_data2, columns = headers2)
 bm = pd.DataFrame(rows_data3, columns = headers3)
-bart["Team"] = bart["Team"].str.replace('vs.', '()')
+bart["Team"] = bart["Team"].str.replace('vs.', '()', regex=True)
 bart["Team"] = bart["Team"].str.replace(r"\s*\(.*", "", regex=True)
 bart = bart.drop_duplicates()
 bart = bart.drop(labels=25, axis=0)
@@ -103,18 +103,18 @@ south = pd.DataFrame(columns=["Seed", "Team"])
 
 seed_order = [1, 16, 8, 9, 5, 12, 4, 13, 6, 11, 3, 14, 7, 10, 2, 15]
 # Create a function to distribute seeds into the regional dataframes
-def distribute_seeds(df, region_df):
+def distribute_seeds(df, region_df, seed_order):
     selected_rows = []  # Temporary list to store selected rows
     
     for seed in seed_order:
         # Get teams for each seed
         teams_for_seed = df[df["Seed"] == seed]
         
-        # If there are multiple teams for this seed, pick one
-        for index, team in teams_for_seed.iterrows():
-            selected_rows.append(team)  # Store the selected row
-            df = df.drop(index)  # Remove from main DataFrame
-            break  # Only take one team per seed
+        # If there are multiple teams for this seed, pick one randomly
+        if not teams_for_seed.empty:
+            selected_team = teams_for_seed.sample(n=1).iloc[0]  # Randomly select one row
+            selected_rows.append(selected_team)  # Store the selected row
+            df = df.drop(selected_team.name)  # Remove from main DataFrame
     
     # Concatenate selected rows into region_df
     region_df = pd.concat([region_df, pd.DataFrame(selected_rows)], ignore_index=True)
@@ -122,10 +122,10 @@ def distribute_seeds(df, region_df):
     return df, region_df
 
 # Distribute seeds to each region (East, West, Midwest, South)
-bm, east = distribute_seeds(bm, east)
-bm, west = distribute_seeds(bm, west)
-bm, midwest = distribute_seeds(bm, midwest)
-bm, south = distribute_seeds(bm, south)
+bm, east = distribute_seeds(bm, east, seed_order)
+bm, west = distribute_seeds(bm, west, seed_order)
+bm, midwest = distribute_seeds(bm, midwest, seed_order)
+bm, south = distribute_seeds(bm, south, seed_order)
 
 
 def matchup(team1, team2):    # defensive efficiencies (higher values are worse)
@@ -207,5 +207,6 @@ w_south = run_tournament(south)
 
 
 combined_df = pd.concat([w_east, w_west, w_midwest, w_south], ignore_index=True)
-
+print("\nFinal Four:")
+print(combined_df)
 champ = run_tournament(combined_df)
