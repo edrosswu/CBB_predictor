@@ -1,8 +1,6 @@
-urllib.request
+request
 bs4
 pandas
 numpy
 random
 shiny
-matplotlib.pyplot
-shiny.express
