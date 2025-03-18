@@ -1,4 +1,5 @@
 from urllib.request import Request, urlopen
+import os
 from bs4 import BeautifulSoup
 import pandas as pd
 import numpy as np
@@ -29,21 +30,22 @@ soup3 = BeautifulSoup(html3, features = "lxml")
 
 
 # use getText()to extract the headers into a list
-headers = [th.getText() for th in soup.findAll('tr', limit=2)[1].findAll('th')]
+headers = [th.getText() for th in soup.find_all('tr', limit=2)[1].find_all('th')]
 headers2 = ['Rk', 'Team', 'Conf', 'W-L', 'NetRtg', 'ORtg', 't1', 'DRtg', 't2', 'AdjT', 't3', 'Luck', 't5', 'SOS_NetRtg', 't6', 'SOS_ORtg', 't8', 'SOS_DRtg', 't9', 'NCSOS_NetRtg', 't10']
-headers3 = [str(i) for i in range(99)]
+headers3 = [str(i) for i in range(262)]
+
 
 # get rows from table
-rows = soup.findAll('tr')[2:]
-rows_data = [[td.getText() for td in rows[i].findAll('td')]
+rows = soup.find_all('tr')[2:]
+rows_data = [[td.getText() for td in rows[i].find_all('td')]
                     for i in range(len(rows))]
 
-rows2 = soup2.findAll('tr')[2:]
-rows_data2 = [[td.getText() for td in rows2[i].findAll('td')]
+rows2 = soup2.find_all('tr')[2:]
+rows_data2 = [[td.getText() for td in rows2[i].find_all('td')]
                     for i in range(len(rows2))]
 
-rows3 = soup3.findAll('tr')[2:]
-rows_data3 = [[td.getText() for td in rows3[i].findAll('td')]
+rows3 = soup3.find_all('tr')[2:]
+rows_data3 = [[td.getText() for td in rows3[i].find_all('td')]
                     for i in range(len(rows3))]
 
 bart = pd.DataFrame(rows_data, columns = headers)
@@ -78,58 +80,19 @@ bart = bart.astype({
 kp = kp.drop_duplicates()
 kp = kp.drop(labels=40, axis=0)
 
-bm = bm.rename(columns={"0":"Seed", "1":"Team", "2":"Conf"})
-bm = bm.drop(labels=0, axis = 0)
-bm = bm.iloc[:, [0, 1 ,2]]
-bm = bm.iloc[:68]
-bm["Seed"] = bm["Seed"].astype(int)
-bm["Team"] = bm["Team"].astype(str)
-bm["Conf"] = bm["Conf"].astype(str)
-bm.loc[bm["Team"] == "Central Connecticut State", "Team"] = "Central Connecticut"
-bm.loc[bm["Team"] == "Iowa State", "Team"] = "Iowa St."
-bm.loc[bm["Team"] == "Omaha", "Team"] = "Nebraska Omaha"
-bm.loc[bm["Team"] == "St. Mary's (CA)", "Team"] = "Saint Mary's"
-bm.loc[bm["Team"] == "San Diego State", "Team"] = "San Diego St."
-bm.loc[bm["Team"] == "Southeast Missouri State", "Team"] = "Southeast Missouri St."
-bm.loc[bm["Team"] == "Michigan State", "Team"] = "Michigan St."
-bm.loc[bm["Team"] == "McNeese State", "Team"] = "McNeese St."
-bm.loc[bm["Team"] == "Ohio State", "Team"] = "Ohio St."
-bm.loc[bm["Team"] == "Norfolk State", "Team"] = "Norfolk St."
-bm.loc[bm["Team"] == "Arkansas State", "Team"] = "Arkansas St."
-bm.loc[bm["Team"] == "Mississippi State", "Team"] = "Mississippi St."
-bm.loc[bm["Team"] == "Utah State", "Team"] = "Utah St."
-bm.loc[bm["Team"] == "Boise State", "Team"] = "Boise St."
-mat = bm
-east = pd.DataFrame(columns=["Seed", "Team"])
-west = pd.DataFrame(columns=["Seed", "Team"])
-midwest = pd.DataFrame(columns=["Seed", "Team"])
-south = pd.DataFrame(columns=["Seed", "Team"])
+#change path 
+south = pd.read_csv(r"C:\Users\Adam\Downloads\south_region - Sheet1 (1).csv")
+east = pd.read_csv(r"C:\Users\Adam\Downloads\east_region - Sheet1 (1).csv")
+west = pd.read_csv(r"C:\Users\Adam\Downloads\west_region - Sheet1 (1).csv")
+midwest = pd.read_csv(r"C:\Users\Adam\Downloads\midwest_region - Sheet1 (1).csv")
+bracket = pd.read_csv(r"C:\Users\Adam\Downloads\2025 team bracket - Sheet1.csv")
 
-seed_order = [1, 16, 8, 9, 5, 12, 4, 13, 6, 11, 3, 14, 7, 10, 2, 15]
-# Create a function to distribute seeds into the regional dataframes
-def distribute_seeds(df, region_df, seed_order):
-    selected_rows = []  # Temporary list to store selected rows
-    
-    for seed in seed_order:
-        # Get teams for each seed
-        teams_for_seed = df[df["Seed"] == seed]
-        
-        # If there are multiple teams for this seed, pick one randomly
-        if not teams_for_seed.empty:
-            selected_team = teams_for_seed.sample(n=1).iloc[0]  # Randomly select one row
-            selected_rows.append(selected_team)  # Store the selected row
-            df = df.drop(selected_team.name)  # Remove from main DataFrame
-    
-    # Concatenate selected rows into region_df
-    region_df = pd.concat([region_df, pd.DataFrame(selected_rows)], ignore_index=True)
-
-    return df, region_df
 
 def matchup(team1, team2):    # defensive efficiencies (higher values are worse)
     df1 = bart[bart["Team"] == team1]
     df2 = bart[bart["Team"] == team2]
-    df_seed1  = mat[mat["Team"] == team1]
-    df_seed2 = mat[mat["Team"] == team2]
+    df_seed1 = bracket[bracket["Team"] == team1]
+    df_seed2 = bracket[bracket["Team"] == team2]
 
     off_eff1 = float(df1.AdjOE.iloc[0])
     def_eff1 = float(df1.AdjDE.iloc[0])
@@ -260,35 +223,22 @@ def server(input, output, session):
     @reactive.calc
     @reactive.event(input.sim)
     def simulate_regions():
-        # Start with a copy of the main dataframe
-        remaining_df = mat.copy()
         
-        # Create empty dataframes for each region
-        south_df = pd.DataFrame(columns=mat.columns)
-        east_df = pd.DataFrame(columns=mat.columns)
-        midwest_df = pd.DataFrame(columns=mat.columns)
-        west_df = pd.DataFrame(columns=mat.columns)
-        
-        # Distribute teams to each region
-        remaining_df, south_df = distribute_seeds(remaining_df, south_df, seed_order)
-        remaining_df, east_df = distribute_seeds(remaining_df, east_df, seed_order)
-        remaining_df, midwest_df = distribute_seeds(remaining_df, midwest_df, seed_order)
-        remaining_df, west_df = distribute_seeds(remaining_df, west_df, seed_order)
         
         # Run tournaments for each region and capture round results
-        south_winner, south_round_results = run_tournament(south_df)
-        east_winner, east_round_results = run_tournament(east_df)
-        midwest_winner, midwest_round_results = run_tournament(midwest_df)
-        west_winner, west_round_results = run_tournament(west_df)
+        south_winner, south_round_results = run_tournament(south)
+        east_winner, east_round_results = run_tournament(east)
+        midwest_winner, midwest_round_results = run_tournament(midwest)
+        west_winner, west_round_results = run_tournament(west)
         
         # Combine winners for Final Four
         final_four_df = pd.concat([south_winner, east_winner, midwest_winner, west_winner], ignore_index=True)
         final_four_winner, final_four_results = run_tournament(final_four_df)
         return {
-            "south": south_df,
-            "east": east_df,
-            "midwest": midwest_df,
-            "west": west_df,
+            "south": south,
+            "east": east,
+            "midwest": midwest,
+            "west": west,
             "south_winner": south_winner,
             "east_winner": east_winner,
             "midwest_winner": midwest_winner,
