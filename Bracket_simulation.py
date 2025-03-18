@@ -77,30 +77,54 @@ bart = bart.astype({
     "Adj T.": float,
     "WAB": float
     })  
+bart = bart[bart["Team"].str.contains("✅")]
+
+# Step 2: Remove number, seed, and check mark
+bart["Team"] = bart["Team"].str.replace(r"\d+\sseed,?\s✅", "", regex=True).str.strip()
 kp = kp.drop_duplicates()
 kp = kp.drop(labels=40, axis=0)
 
 #change path 
-south = pd.read_csv(r"C:\Users\Adam\Downloads\south_region - Sheet1 (1).csv")
-east = pd.read_csv(r"C:\Users\Adam\Downloads\east_region - Sheet1 (1).csv")
-west = pd.read_csv(r"C:\Users\Adam\Downloads\west_region - Sheet1 (1).csv")
-midwest = pd.read_csv(r"C:\Users\Adam\Downloads\midwest_region - Sheet1 (1).csv")
-bracket = pd.read_csv(r"C:\Users\Adam\Downloads\2025 team bracket - Sheet1.csv")
+headers4 = ['Seed', 'Team']
+south = pd.read_csv(r"/Users/evanrosswurm/Downloads/south_region.csv")
+south = pd.DataFrame(south, columns=headers4)
+east = pd.read_csv(r"/Users/evanrosswurm/Downloads/east_region.csv")
+east = pd.DataFrame(east, columns=headers4)
+west = pd.read_csv(r"/Users/evanrosswurm/Downloads/west_region.csv")
+west = pd.DataFrame(west, columns=headers4)
+midwest = pd.read_csv(r"/Users/evanrosswurm/Downloads/midwest_region.csv")
+midwest = pd.DataFrame(midwest, columns=headers4)
+full = pd.read_excel(r"/Users/evanrosswurm/Downloads/bracket.xlsx")
+full = pd.DataFrame(full, columns=headers4)
+south["Seed"] = south["Seed"].astype(int)
+south["Team"] = south["Team"].astype(str)
+east["Seed"] = east["Seed"].astype(int)
+east["Team"] = east["Team"].astype(str)
+west["Seed"] = west["Seed"].astype(int)
+west["Team"] = west["Team"].astype(str)
+midwest["Seed"] = midwest["Seed"].astype(int)
+midwest["Team"] = midwest["Team"].astype(str)
+full["Seed"] = full["Seed"].astype(int)
+full["Team"] = full["Team"].astype(str)
+midwest.loc[midwest['Seed'] == 10, 'Team'] = "Utah St."
 
 
 def matchup(team1, team2):    # defensive efficiencies (higher values are worse)
     df1 = bart[bart["Team"] == team1]
-    df2 = bart[bart["Team"] == team2]
-    df_seed1 = bracket[bracket["Team"] == team1]
-    df_seed2 = bracket[bracket["Team"] == team2]
-
+    if team2 == "Utah St.":
+        print("Ran Successfully")
+        df2 = bart[bart["Team"] == "Utah St."]
+        df_seed2 = full[full["Team"] == "Utah St."]
+    else:
+        df2 = bart[bart["Team"] == team2]
+        df_seed2 = full[full["Team"] == team2]
+    df_seed1 = full[full["Team"] == team1]
     off_eff1 = float(df1.AdjOE.iloc[0])
     def_eff1 = float(df1.AdjDE.iloc[0])
     to_rate1 = float(df1.TOR.iloc[0])
     efg1 = float(df1['EFG%'].iloc[0])
     drb1 = float(df1.DRB.iloc[0])
     seed1 = int(df_seed1.Seed.iloc[0])
-    t1_conf = str(df1.Conf.iloc[0])
 
 
     off_eff2 = float(df2.AdjOE.iloc[0])
@@ -109,7 +133,6 @@ def matchup(team1, team2):    # defensive efficiencies (higher values are worse)
     efg2 = float(df2['EFG%'].iloc[0])
     drb2 = float(df2.DRB.iloc[0])
     seed2 = int(df_seed2.Seed.iloc[0])
-    t2_conf = str(df2.Conf.iloc[0])
 
     # Calculate team 1's expected winning percentage
     win_pct1 = (((off_eff1) * 11.5) / (((off_eff1) * 11.5) + ((def_eff1) * 11.5)))
@@ -124,9 +147,9 @@ def matchup(team1, team2):    # defensive efficiencies (higher values are worse)
     team1_prob = 1 - total_win_pct
     winner = random.choices([team1, team2], weights=[team1_prob, team2_prob])[0]
     if winner == team1:
-        return winner, team1_prob, seed1, t1_conf
+        return winner, team1_prob, seed1
     else:
-        return winner, team2_prob, seed2, t2_conf
+        return winner, team2_prob, seed2
 
 
 def run_tournament(df):
@@ -146,15 +169,15 @@ def run_tournament(df):
                 team1 = str(team_temp1["Team"])
                 team2 = str(team_temp2["Team"])
                 # Determine winner
-                winner, win_prob, win_seed, win_conf = matchup(team1, team2)
+                winner, win_prob, win_seed = matchup(team1, team2)
                 if winner == team1:
                     winners.append(team_temp1)
-                    win_probs.append(win_prob)  # Multiply past probability
-                    round_info.append(f"{win_seed} {team1} from {win_conf} wins with {win_prob:.2%} probability")
+                    win_probs.append(win_prob)
+                    round_info.append(f"{win_seed} {team1} wins with {win_prob:.2%} probability")
                 else:
                     winners.append(team_temp2)
-                    win_probs.append(win_prob)  # Multiply past probability
-                    round_info.append(f"{win_seed} {team2} from {win_conf} wins with {win_prob:.2%} probability")
+                    win_probs.append(win_prob)
+                    round_info.append(f"{win_seed} {team2} wins with {win_prob:.2%} probability")
         
         # Create new dataframe for the next round
         df = pd.DataFrame(winners)
@@ -257,29 +280,29 @@ def server(input, output, session):
     @render.text
     def south_bracket():
         results = simulate_regions()
-        bracket = results["south"]
-        return f"South Region:\n{bracket[['Seed', 'Team', 'Conf']].to_string(index=False)}"       
+        temp = results["south"]
+        return f"South Region:\n{temp[['Seed', 'Team']].to_string(index=False)}"       
     
     @output
     @render.text
     def east_bracket():
         results = simulate_regions()
-        bracket = results["east"]
-        return f"East Region:\n{bracket[['Seed', 'Team', 'Conf']].to_string(index=False)}"       
+        temp = results["east"]
+        return f"East Region:\n{temp[['Seed', 'Team']].to_string(index=False)}"       
     
     @output
     @render.text
     def midwest_bracket():
         results = simulate_regions()
-        bracket = results["midwest"]
-        return f"Midwest Region:\n{bracket[['Seed', 'Team', 'Conf']].to_string(index=False)}"       
+        temp = results["midwest"]
+        return f"Midwest Region:\n{temp[['Seed', 'Team']].to_string(index=False)}"       
     
     @output
     @render.text
     def west_bracket():
         results = simulate_regions()
-        bracket = results["west"]
-        return f"West Region:\n{bracket[['Seed', 'Team', 'Conf']].to_string(index=False)}"       
+        temp = results["west"]
+        return f"West Region:\n{temp[['Seed', 'Team']].to_string(index=False)}"       
 
     @output
     @render.text
